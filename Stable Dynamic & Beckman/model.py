@@ -14,13 +14,13 @@ import weighted_dual_averages_method as wda
 
 
 class Model:
-    def __init__(self, graph_data, graph_correspondences, total_od_flow, mu = 0.25, rho = 0.15):
+    def __init__(self, graph_data, graph_correspondences, total_od_flow, mu = 0.25, rho = 0.15, sp_recompute='t_swsf'):
         self.total_od_flow = total_od_flow
         self.mu = mu
         self.rho = rho
         self.inds_to_nodes, self.graph_correspondences, graph_table = self._index_nodes(graph_data['graph_table'],
                                                                                         graph_correspondences)
-        self.graph = tg.TransportGraph(graph_table, len(self.inds_to_nodes), graph_data['links number'])
+        self.graph = tg.TransportGraph(graph_table, len(self.inds_to_nodes), graph_data['links number'], recompute_method=sp_recompute)
         
     def _index_nodes(self, graph_table, graph_correspondences):
         table = graph_table.copy()
