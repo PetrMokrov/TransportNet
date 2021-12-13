@@ -5,13 +5,13 @@ import graph_tool.all as gt
 import graph_tool.topology as gtt
 import numpy as np
 import math
-from t_swsf import t_swsf, shorest_dists_equal
+from t_swsf import t_swsf, shorest_dists_equal, dijkstra
 from copy import deepcopy, copy
 from collections import defaultdict
 
 class TransportGraph:
     def __init__(self, graph_table, nodes_number, links_number, maxpath_const = 3, recompute_method='t_swsf'):
-        assert recompute_method in ['dijkstra', 't_swsf', 'compare']
+        assert recompute_method in ['dijkstra', 't_swsf', 'compare', 'our_dijkstra', 'compare_dijkstras']
         self.recompute_method = recompute_method
         self.nodes_number = nodes_number
         self.links_number = links_number
@@ -81,6 +81,11 @@ class TransportGraph:
                 weights = ep_time_map, pred_map = True)
             return ep_time_map, distances, pred_map
 
+        def recompute_our_dijkstra():
+            ep_time_map = self.graph.new_edge_property("double", vals = times)
+            distances, pred_map = dijkstra(self.graph, ep_time_map, source)
+            return ep_time_map, distances, pred_map
+
         def recompute_t_swsf():
             np_times = np.asarray(times)
             _prev_dists, _prev_pred_map, _prev_lens = self._prev_info[source]
@@ -100,6 +105,10 @@ class TransportGraph:
         if self.recompute_method == 'dijkstra':
             _, distances, pred_map = recompute_dijkstra()
             return finalize_return(distances, pred_map)
+        
+        if self.recompute_method == 'our_dijkstra':
+            _, distances, pred_map = recompute_our_dijkstra()
+            return finalize_return(distances, pred_map)
 
         if self.recompute_method == 't_swsf':
             if not source in self._prev_info:
@@ -116,6 +125,12 @@ class TransportGraph:
             else:
                 times_prop, distances, pred_map = recompute_t_swsf()
             self._prev_info[source] = (copy(distances), copy(pred_map), times_prop)
+            assert shorest_dists_equal(self.graph, distances, gt_distances)
+            return finalize_return(distances, pred_map)
+
+        if self.recompute_method == 'compare_dijkstras':
+            _, gt_distances, gt_pred_map = recompute_dijkstra()
+            _, distances, pred_map = recompute_our_dijkstra()
             assert shorest_dists_equal(self.graph, distances, gt_distances)
             return finalize_return(distances, pred_map)
 

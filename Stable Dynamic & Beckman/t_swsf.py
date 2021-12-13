@@ -29,6 +29,23 @@ class GraphPriorityQueue:
             self.priority_dict.add((priority, i_vertex))
             assert len(self.vertices_dict) == len(self.priority_dict)
 
+    def insert_or_update_if_less(self, vertex, priority):
+        '''
+        returns if the vertex priority is updated.
+        '''
+        i_vertex = int(vertex)
+        try:
+            old_priority = self.vertices_dict[i_vertex]
+            if old_priority <= priority:
+                return False
+            self.priority_dict.remove((old_priority, i_vertex))
+        except KeyError as e:
+            pass
+        self.vertices_dict[i_vertex] = priority
+        self.priority_dict.add((priority, i_vertex))
+        assert len(self.vertices_dict) == len(self.priority_dict)
+        return True
+
     def pop_min(self):
         priority, i_vertex = self.priority_dict.pop(0)
         del self.vertices_dict[i_vertex]
@@ -128,6 +145,49 @@ def t_swsf(g, lens, s, dists, pred_map, delta_lens, infty=2147483647.0):
                     dists[v_next], pred_map[v_next] = con(v_next, Dists, lens)
                     Q.insert_or_update(v_next, min(dists[v_next], Dists[v_next]))
     return lens, Dists, pred_map
+
+def dijkstra(g, lens, s):
+    '''
+    Computes the shortest paths from s to all other nodes
+    For reference, see https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.164.5911&rep=rep1&type=pdf
+    :Parameters:
+    g : graph_tool.Graph : the graph
+    lens : graph_tool.EdgePropertyMap : edge's weights property
+    s : graph_tool.Vertex : the source vertex
+    :Returns:
+    g_dists: graph_tool.VertexPropertyMap : the minimal distances w.r.t. the edges weights
+    g_pred_map: graph_tool.VertexPropertyMap : predecessor's tree of minimal pathes w.r.t. the edges weights
+    '''
+    # # firstly visited vertices
+    # g_vts_init = g.new_vertex_property('bool', vals=np.zeros(g.num_vertices()))
+    # g_vts_init[int(s)] = True
+    # vertices with already established minimal distances
+    g_vts_spent = g.new_vertex_property('bool', vals=np.zeros(g.num_vertices()))
+    # shortest distances
+    g_dists = g.new_vertex_property('double', vals=np.inf)
+    g_dists[s] = 0.0
+    # pred map
+    g_pred_map = g.new_vertex_property('int')
+    g_pred_map[s] = int(s)
+    # priority queue to extract the current shortest vertices
+    Q = GraphPriorityQueue()
+    Q.insert_or_update(s, 0.0)
+    # Main phase
+    while not Q.is_empty():
+        i_v, v_dist = Q.pop_min()
+        v = g.vertex(i_v)
+        for edge in v.out_edges():
+            u = edge.target()
+            if g_vts_spent[u]:
+                continue
+            # update_if_less=False
+            u_new_dist = v_dist + lens[edge]
+            u_dist_updated = Q.insert_or_update_if_less(u, u_new_dist)
+            if u_dist_updated:
+                g_pred_map[u] = int(v)
+        g_vts_spent[v] = True
+        g_dists[v] = v_dist
+    return g_dists, g_pred_map
 
 def shorest_dists_equal(g, dist_1, dist_2, tol=1e-10):
     res = True
