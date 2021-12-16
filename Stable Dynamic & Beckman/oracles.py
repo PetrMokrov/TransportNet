@@ -181,14 +181,14 @@ class PhiBigOracle(BaseOracle):
         else:
             self.processes_number = len(correspondences)
         self.t_current = self.func_current = self.grad_current = None
-        
+
         pred_to_edges = get_pred_to_edges(graph)
-        
+
         self.auto_oracles = []
         for source, source_correspondences in self.correspondences.items():
             self.auto_oracles.append(AutomaticOracle(source, self.graph, source_correspondences, pred_to_edges))
         self.time = 0.0
-    
+
     def _reset(self, t_parameter):
         tic = time.time()
         self.t_current = t_parameter
@@ -198,12 +198,12 @@ class PhiBigOracle(BaseOracle):
             self.func_current += auto_oracle.func(self.t_current)
             self.auto_oracles_time += auto_oracle.time
         self.time += time.time() - tic
-    
+
     def func(self, t_parameter):
         if self.t_current is None or np.any(self.t_current != t_parameter):
             self._reset(t_parameter)
         return self.func_current
-            
+
     def grad(self, t_parameter):
         if self.t_current is None or np.any(self.t_current != t_parameter):
             self._reset(t_parameter)

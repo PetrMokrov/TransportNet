@@ -5,7 +5,13 @@ from history import History
 def universal_similar_triangles_method(oracle, prox, primal_dual_oracle,
                                        t_start, L_init = None, max_iter = 1000,
                                        eps = 1e-5, eps_abs = None, stop_crit = 'dual_gap_rel',
-                                       verbose_step = 100, verbose = False, save_history = False):
+                                       verbose_step = 100, verbose = False, save_history = False, tswsf_type='dense'):
+    assert tswsf_type in ['dense', 'sparse']
+
+    def update_times(t_upd):
+        if tswsf_type == 'sparse':
+            oracle.graph.update_edge_weights(t_upd)
+
     if stop_crit == 'dual_gap_rel':
         def crit():
             return duality_gap <= eps * duality_gap_init
@@ -25,13 +31,15 @@ def universal_similar_triangles_method(oracle, prox, primal_dual_oracle,
     
     A_prev = 0.0
     y_start = u_prev = t_prev = np.copy(t_start)
+    update_times(t_prev)
     A = u = t = y = None
     
     grad_sum = None
     grad_sum_prev = np.zeros(len(t_start))
 
-    flows_weighted = primal_dual_oracle.get_flows(y_start) 
+    flows_weighted = primal_dual_oracle.get_flows(y_start)
     primal, dual, duality_gap_init, state_msg = primal_dual_oracle(flows_weighted, y_start)
+    update_times(t_prev)
     if save_history:
         history = History('iter', 'primal_func', 'dual_func', 'dual_gap', 'inner_iters')
         history.update(0, primal, dual, duality_gap_init, 0)
@@ -51,14 +59,23 @@ def universal_similar_triangles_method(oracle, prox, primal_dual_oracle,
             A = A_prev + alpha
 
             y = (alpha * u_prev + A_prev * t_prev) / A
+            update_times(y)
             grad_y = oracle.grad(y)
             flows = primal_dual_oracle.get_flows(y) #grad() is called here
             grad_sum = grad_sum_prev + alpha * grad_y
             u = prox(grad_sum / A, y_start, 1.0 / A)
             t = (alpha * u + A_prev * t_prev) / A
+            
+            ############
+            # assert isinstance(t, np.ndarray)
+            # t_diff = np.abs(t - t_prev)
+            # print('difference: ', np.sum(t_diff > 1e-10)/len(t_diff))
+            ###############
 
-            left_value = (oracle.func(y) + np.dot(grad_y, t - y) + 
-                          0.5 * alpha / A * eps_abs) - oracle.func(t)
+            left_value_ = (oracle.func(y) + np.dot(grad_y, t - y) + 
+                          0.5 * alpha / A * eps_abs)
+            update_times(t)
+            left_value = left_value_ - oracle.func(t)
             right_value = - 0.5 * L_value * np.sum((t - y)**2)
             if left_value >= right_value:
                 break
@@ -72,7 +89,7 @@ def universal_similar_triangles_method(oracle, prox, primal_dual_oracle,
         u_prev = u
         grad_sum_prev = grad_sum
         flows_weighted = (flows_weighted * (A - alpha) + flows * alpha ) / A
-        
+        # update_times(t)
         primal, dual, duality_gap, state_msg = primal_dual_oracle(flows_weighted, t)
         if save_history:
             history.update(it_counter, primal, dual, duality_gap, inner_iters_num)

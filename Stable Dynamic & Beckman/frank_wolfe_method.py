@@ -5,7 +5,13 @@ from history import History
 def frank_wolfe_method(oracle, primal_dual_oracle,
                        t_start, max_iter = 1000,
                        eps = 1e-5, eps_abs = None, stop_crit = 'dual_gap_rel',
-                       verbose_step = 100, verbose = False, save_history = False):
+                       verbose_step = 100, verbose = False, save_history = False, tswsf_type='dense'):
+    assert tswsf_type in ['dense', 'sparse']
+
+    def update_times(t_upd):
+        if tswsf_type == 'sparse':
+            oracle.graph.update_edge_weights(t_upd)
+
     if stop_crit == 'dual_gap_rel':
         def crit():
             return duality_gap <= eps * duality_gap_init
@@ -21,6 +27,7 @@ def frank_wolfe_method(oracle, primal_dual_oracle,
         raise ValueError("stop_crit should be callable or one of the following names: \
                          'dual_gap', 'dual_gap_rel', 'max iter'")
     t = None
+    update_times(t_start)
     flows = - oracle.grad(t_start)
     t_weighted = np.copy(t_start)
     
@@ -36,11 +43,17 @@ def frank_wolfe_method(oracle, primal_dual_oracle,
     success = False
     for it_counter in range(1, max_iter+1):
         t = primal_dual_oracle.get_times(flows)
+        update_times(t)
         y_parameter = primal_dual_oracle.get_flows(t) 
         gamma = 2.0 / (it_counter + 1)
         flows = (1.0 - gamma) * flows + gamma * y_parameter
+        #################
+        # assert isinstance(t_weighted, np.ndarray)
+        # t_diff = np.abs(t_weighted - t)
+        # print('difference: ', np.sum(t_diff > 1e-5)/len(t_diff))
+        #################
         t_weighted = (1.0 - gamma) * t_weighted + gamma * t
-        
+        update_times(t_weighted)
         primal, dual, duality_gap, state_msg  = primal_dual_oracle(flows, t_weighted)
         if save_history:
             history.update(it_counter, primal, dual, duality_gap)

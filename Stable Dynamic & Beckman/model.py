@@ -20,7 +20,12 @@ class Model:
         self.rho = rho
         self.inds_to_nodes, self.graph_correspondences, graph_table = self._index_nodes(graph_data['graph_table'],
                                                                                         graph_correspondences)
-        self.graph = tg.TransportGraph(graph_table, len(self.inds_to_nodes), graph_data['links number'], recompute_method=sp_recompute)
+        if sp_recompute in ['t_swsf', 'compare', 'dijkstra', 'our_dijkstra', 'compare_dijkstras']:
+            self.graph = tg.TransportGraph(graph_table, len(self.inds_to_nodes), graph_data['links number'], recompute_method=sp_recompute)
+        elif sp_recompute in ['sparse_t_swsf', 'sparse_t_swsf_compare', 'sparse_t_swsf_tradeoff']:
+            sp_recompute = sp_recompute[7:]
+            self.graph = tg.TransportGraphTSWSF(graph_table, len(self.inds_to_nodes), graph_data['links number'], recompute_method=sp_recompute)
+            
         
     def _index_nodes(self, graph_table, graph_correspondences):
         table = graph_table.copy()
