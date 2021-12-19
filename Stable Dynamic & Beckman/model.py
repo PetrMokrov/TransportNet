@@ -25,6 +25,8 @@ class Model:
         elif sp_recompute in ['sparse_t_swsf', 'sparse_t_swsf_compare', 'sparse_t_swsf_tradeoff']:
             sp_recompute = sp_recompute[7:]
             self.graph = tg.TransportGraphTSWSF(graph_table, len(self.inds_to_nodes), graph_data['links number'], recompute_method=sp_recompute)
+        else:
+            raise Exception(f'sp_recompute type "{sp_recopute}" not supported')
             
         
     def _index_nodes(self, graph_table, graph_correspondences):

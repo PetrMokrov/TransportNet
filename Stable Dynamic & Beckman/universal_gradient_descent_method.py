@@ -4,7 +4,14 @@ from history import History
 def universal_gradient_descent_method(oracle, prox, primal_dual_oracle,
                                       t_start, L_init = None, max_iter = 1000,
                                       eps = 1e-5, eps_abs = None, stop_crit = 'dual_gap_rel',
-                                      verbose_step = 100, verbose = False, save_history = False):
+                                      verbose_step = 100, verbose = False, save_history = False,
+                                      tswsf_type='dense'):
+    assert tswsf_type in ['dense', 'sparse']
+
+    def update_times(t_upd):
+        if tswsf_type == 'sparse':
+            oracle.graph.update_edge_weights(t_upd)
+
     if stop_crit == 'dual_gap_rel':
         def crit():
             return duality_gap <= eps * duality_gap_init
@@ -23,11 +30,14 @@ def universal_gradient_descent_method(oracle, prox, primal_dual_oracle,
     L_value = L_init if L_init is not None else np.linalg.norm(oracle.grad(t_start))
     A = 0.0
     t_prev = np.copy(t_start)
+    update_times(t_prev)
     t = None
 
     flows_weighted = primal_dual_oracle.get_flows(t_start) 
     t_weighted = np.copy(t_start)
     primal, dual, duality_gap_init, state_msg = primal_dual_oracle(flows_weighted, t_weighted)
+    # update_times(t_prev) # probably it is unnecessary
+    
     if save_history:
         history = History('iter', 'primal_func', 'dual_func', 'dual_gap', 'inner_iters')
         history.update(0, primal, dual, duality_gap_init, 0)
@@ -44,12 +54,16 @@ def universal_gradient_descent_method(oracle, prox, primal_dual_oracle,
             inner_iters_num += 1
             
             alpha = 1 / L_value
+            #TODO: probably we can do it once outside of the loop, but I am not sure
+            update_times(t_prev)
             grad_t = oracle.grad(t_prev)
             flows = primal_dual_oracle.get_flows(t_prev) #grad() is called here
             t = prox(grad_t, t_prev, 1.0 / alpha)
 
-            left_value = (oracle.func(t_prev) + np.dot(grad_t, t - t_prev) + 
-                          0.5 * eps_abs) - oracle.func(t)
+            left_value_ = (oracle.func(t_prev) + np.dot(grad_t, t - t_prev) + 
+                          0.5 * eps_abs)
+            update_times(t)
+            left_value = left_value_ - oracle.func(t)
             right_value = - 0.5 * L_value * np.sum((t - t_prev)**2)
             if left_value >= right_value:
                 break
@@ -62,7 +76,7 @@ def universal_gradient_descent_method(oracle, prox, primal_dual_oracle,
         A += alpha
         t_weighted = (t_weighted * (A - alpha) + t * alpha) / A
         flows_weighted = (flows_weighted * (A - alpha) + flows * alpha ) / A
-        
+        update_times(t_weighted)
         primal, dual, duality_gap, state_msg = primal_dual_oracle(flows_weighted, t_weighted)
         if save_history:
             history.update(it_counter, primal, dual, duality_gap, inner_iters_num)

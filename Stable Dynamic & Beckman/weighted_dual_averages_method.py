@@ -5,7 +5,14 @@ from history import History
 def weighted_dual_averages_method(oracle, prox, primal_dual_oracle,
                                   t_start, max_iter = 1000,
                                   eps = 1e-5, eps_abs = None, stop_crit = 'dual_gap_rel',
-                                  verbose_step = 100, verbose = False, save_history = False):
+                                  verbose_step = 100, verbose = False, save_history = False, 
+                                  tswsf_type='dense'):
+    assert tswsf_type in ['dense', 'sparse']
+
+    def update_times(t_upd):
+        if tswsf_type == 'sparse':
+            oracle.graph.update_edge_weights(t_upd)
+
     if stop_crit == 'dual_gap_rel':
         def crit():
             return duality_gap <= eps * duality_gap_init
@@ -23,6 +30,7 @@ def weighted_dual_averages_method(oracle, prox, primal_dual_oracle,
     
     A = 0.0
     t = np.copy(t_start)
+    update_times(t_start)
     grad_sum = np.zeros(len(t_start))
     beta_seq = 1.0
     rho_wda = np.sqrt(2) * np.linalg.norm(t_start)
@@ -39,19 +47,21 @@ def weighted_dual_averages_method(oracle, prox, primal_dual_oracle,
     success = False
     
     for it_counter in range(1, max_iter+1):
+        update_times(t)
         grad_t = oracle.grad(t)
         flows = primal_dual_oracle.get_flows(t) #grad() is called here
         alpha = 1 / np.linalg.norm(grad_t)
         A += alpha
         grad_sum += alpha * grad_t
-        
+
         beta_seq = 1 if it_counter == 1 else beta_seq + 1.0 / beta_seq
         beta = beta_seq / rho_wda
         t = prox(grad_sum / A, t_start, beta / A)
 
         t_weighted = (t_weighted * (A - alpha) + t * alpha) / A
         flows_weighted = (flows_weighted * (A - alpha) + flows * alpha) / A
-        
+
+        update_times(t_weighted)
         primal, dual, duality_gap, state_msg = primal_dual_oracle(flows_weighted, t_weighted)
         if save_history:
             history.update(it_counter, primal, dual, duality_gap)
