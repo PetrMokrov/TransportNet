@@ -187,8 +187,14 @@ class TransportGraphTSWSF:
                 if diff != 0.0:
                     self._upd_edge_weights[edge] = diff
             self._edge_weights = ep_time_map
-        # if self._upd_edge_weights is not None:
-        #     print(len(self._upd_edge_weights)/len(self._edge_list))
+        if self._upd_edge_weights is not None:
+            if self.recompute_method == 't_swsf_tradeoff':
+                _ratio = len(self._upd_edge_weights)/len(self._edge_list)
+                if _ratio < 0.05:
+                    print('T', end='')
+                else:
+                    print('D', end='')
+                # print(len(self._upd_edge_weights)/len(self._edge_list))
     
     def _get_upd_ratio(self):
         if self._upd_edge_weights is not None:

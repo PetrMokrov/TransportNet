@@ -59,6 +59,7 @@ def universal_similar_triangles_method(oracle, prox, primal_dual_oracle,
             A = A_prev + alpha
 
             y = (alpha * u_prev + A_prev * t_prev) / A
+            # print('before y')
             update_times(y)
             grad_y = oracle.grad(y)
             flows = primal_dual_oracle.get_flows(y) #grad() is called here
@@ -74,6 +75,7 @@ def universal_similar_triangles_method(oracle, prox, primal_dual_oracle,
 
             left_value_ = (oracle.func(y) + np.dot(grad_y, t - y) + 
                           0.5 * alpha / A * eps_abs)
+            # print('before t')
             update_times(t)
             left_value = left_value_ - oracle.func(t)
             right_value = - 0.5 * L_value * np.sum((t - y)**2)
