@@ -17,6 +17,34 @@ Convergence rates of UMST, UGM, composite and non-composite WDA-methods, and the
 
 <img src="https://github.com/MeruzaKub/TransportNet/blob/master/Stable%20Dynamic%20%26%20Beckman/pics/beckmann_convergence_rel_eps.jpg" width="500">
 
+## Usage of `T-SWSF` for stable dynamic problem
+One can substitute the `Dijkstra` algorithm when performing flow reconstruction phase (see `Alogorithm 1` of the original [article](https://arxiv.org/pdf/2008.02418.pdf)) with the `T-SWSF` algorithm [[ref](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.164.5911&rep=rep1&type=pdf)] aimed at solving the Dynamic Single-Source Shortest-Path problem. The general idea behind this problem is to utilize the knowledge of shortest paths and shortest distances computed on the previous step for computing the shortest paths and shortest distances on the current step (after graph edge's weights perturbation due to gradient step of a stable dynamic problem solver). 
+
+### `T-SWSF` analysis
+
+Our experimental study shows, that for arbitrary graph perturbations the `T-SWSF` performs worse than `Dijkstra` (for fair comparison we implement both methods in python, our implementations are in the following [file](./Stable%20Dynamic%20%26%20Beckman/t_swsf.py)). However, if the ratio of the number of perturbed edges to the number of all edges is sufficiently small, the `T-SWSF` works faster than recomputation of shortest paths and distances from scratch using `Dijkstra` algorithm. We use the `ratio` constant equals to $r^* = \frac{1}{20}$ but probably it is not the optimal one (and depends on implementation).  We refer to the graph perturbation situation with $r \leq r^*$ as *sparse graph perturbation*.
+
+### `T-SWSF` application
+
+Our experiment study shows that in the stable dynamic model when using `Universal Method of Similar Triangles`(`ustm`) and `Universal gradient method`(`ugm`) solvers (see sections $3.3$ and $3.4$ of the original [article](https://arxiv.org/pdf/2008.02418.pdf) ) the *sparse graph perturbation* situations occurs frequently (every third or even every second graph update is actually *sparse*) (see the [notebook](./Stable%20Dynamic%20%26%20Beckman/Anaheim_Stable_Dynamics_Experiments.ipynb) for reference), and therefore the utilization of `T-SWSF` in such cases seems profitable. 
+
+In order to validate the profitability of the `T-SWSF` when solving stable dynamic model using `ustm` and `ugm` we compare the time needed to achieve fixed duality gaps $\varepsilon$-s (following the original research by `Kubentayeva et. al.`). Our experiments are available in the [notebook](./Stable%20Dynamic%20%26%20Beckman/Anaheim_SD_T_SWSF.ipynb). The final chart is the following:
+
+<img src="./Stable%20Dynamic%20%26%20Beckman/pics/t_swsf_profit.png" width="500">
+
+The `_dijkstra` suffix means, that we solve the SSSP problems by recomputing all paths from scratch using `Dijkstra` algorithm, the `_t_swsf` suffix means, that we apply `T-SWSF` for arbitrary graph perturbations (even for $r > r^*$). The `_tradeoff` means, that we use `Dijkstra` if $r > r^*$ and `T-SWSF` if $r \leq r^*$. Our numerical experiment shows that indeed the `T-SWSF` could improve the time complexity in the considered cases. 
+
+### Further directions
+
+The `T-SWSF` is not the only choice for solving Dynamic Single-Source Shortest-Path problem (and not the most efficient one, especially given our implementation). The potential algorithms which could solve the problem (probably, more efficient) are as follows:
+
+* [[https://www.sciencedirect.com/science/article/pii/S1319157817303828](https://www.sciencedirect.com/science/article/pii/S1319157817303828)]
+
+* [[https://arxiv.org/pdf/1504.07091.pdf](https://arxiv.org/pdf/1504.07091.pdf)]
+
+* [[https://arxiv.org/pdf/1409.6241.pdf](https://arxiv.org/pdf/1409.6241.pdf)]
+
+(It is not the full list, just what we have found)
 
 ## Installing graph-tool
 Native installation of [graph-tool](https://graph-tool.skewed.de/) on Windows isn't supported. But if you have Docker installed, you can easily download the following container image with all the packages required to run the project:
